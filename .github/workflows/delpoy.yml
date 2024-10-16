@@ -1,0 +1,36 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ master ]  # Trigger the action only when there's a push to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'  # Specify the Node.js version
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build React app
+      run: npm run build
+
+    - name: Deploy to EC2
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ${{ secrets.EC2_USER }}
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 777 private_key
+        scp -o StrictHostKeyChecking=no -i private_key -r build/* ${USER}@${HOST}:/path/to/your/deployment/directory
+        ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} '
+          # Any additional commands you want to run on the EC2 instance
+          # For example, restarting your web server
+          sudo systemctl restart nginx
+        '
